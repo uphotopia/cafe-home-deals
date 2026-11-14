@@ -4,8 +4,9 @@
 쿠팡 파트너스 Open API 수집기
 ================================
 
-카페 사장님 주간 필수템 + 가정 생필품 + 자취·살림꿀템 + 골드박스 +
-쿠팡 PL 특가를 쿠팡 파트너스 Open API에서 수집해 `data/deals.json` 으로 저장한다.
+카페 사장님 주간 필수템 + 가정 생필품 + 자취·살림꿀템 + 가성비 겨울옷 +
+가성비 식료품 + 골드박스 + 쿠팡 PL 특가를 쿠팡 파트너스 Open API에서 수집해
+`data/deals.json` 으로 저장한다.
 
 인증 정보 우선순위
 ------------------
@@ -113,10 +114,6 @@ SEARCH_SECTIONS = [
                     "위생백 롤백",
                 ],
             ),
-            (
-                "생수·식료품",
-                ["생수 2L 무라벨", "신라면 멀티팩", "즉석밥 24개"],
-            ),
         ],
     ),
     (
@@ -149,12 +146,58 @@ SEARCH_SECTIONS = [
             ),
         ],
     ),
+    (
+        "winter",
+        [
+            (
+                "패딩·아우터",
+                ["경량패딩", "플리스 자켓"],
+            ),
+            (
+                "이너웨어·상의",
+                ["발열내의", "기모 맨투맨"],
+            ),
+            (
+                "홈웨어·방한용품",
+                ["수면잠옷", "방한장갑", "넥워머", "겨울 양말"],
+            ),
+        ],
+    ),
+    (
+        "food",
+        [
+            (
+                "즉석밥·면류",
+                ["즉석밥", "컵라면", "신라면 멀티팩"],
+            ),
+            (
+                "쌀·잡곡",
+                ["쌀 10kg", "쌀 20kg", "잡곡"],
+            ),
+            (
+                "생수·음료",
+                ["생수 2L 무라벨", "음료 대용량"],
+            ),
+            (
+                "간편식·밀키트",
+                ["밀키트", "즉석국"],
+            ),
+            (
+                "냉동식품·만두",
+                ["냉동만두"],
+            ),
+            (
+                "견과류·간식",
+                ["견과류", "간식 개별포장"],
+            ),
+        ],
+    ),
 ]
 
 BEST_CATEGORIES = [
-    ("1014", "생활용품 베스트"),
-    ("1013", "주방용품 베스트"),
-    ("1012", "식품 베스트"),
+    ("1014", "생활용품 베스트", "home"),
+    ("1013", "주방용품 베스트", "home"),
+    ("1012", "식품 베스트", "food"),
 ]
 
 SEARCH_LIMIT = 10
@@ -176,6 +219,8 @@ SECTION_LABELS = {
     "cafe": "☕ 카페 사장님 필수템",
     "home": "🏠 가정 생필품",
     "living": "🧺 자취·살림꿀템",
+    "winter": "🧥 가성비 겨울옷",
+    "food": "🛒 가성비 식료품",
     "goldbox": "⚡ 오늘의 골드박스",
     "pl": "🔥 쿠팡 PL 특가",
 }
@@ -547,7 +592,7 @@ def main() -> int:
         default=os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, "data", "deals.json"),
         help="출력 JSON 경로 (기본: data/deals.json)",
     )
-    parser.add_argument("--delay", type=float, default=0.45, help="API 요청 사이 대기 초 (기본 0.45)")
+    parser.add_argument("--delay", type=float, default=1.4, help="API 요청 사이 대기 초 (기본 1.4)")
     args = parser.parse_args()
 
     out_path = os.path.normpath(os.path.abspath(args.out))
@@ -571,23 +616,27 @@ def main() -> int:
     print("[best] 카테고리 베스트", flush=True)
     best_products: list[dict] = []
     best_seen: set[int] = set()
-    for category_id, label in BEST_CATEGORIES:
+    for category_id, label, section in BEST_CATEGORIES:
         items = collect_simple(
             client,
             "{}/products/bestcategories/{}".format(API_BASE, category_id),
             {"limit": BEST_LIMIT},
-            "home",
+            section,
             "카테고리 베스트",
             label,
         )
+        added = 0
         for product in items:
             if product["productId"] in best_seen:
                 continue
             best_seen.add(product["productId"])
             best_products.append(product)
+            added += 1
+        section_counts[section] = section_counts.get(section, 0) + added
+        sub_counts.setdefault(section, {})["카테고리 베스트"] = (
+            sub_counts.get(section, {}).get("카테고리 베스트", 0) + added
+        )
     all_products.extend(best_products)
-    section_counts["home"] += len(best_products)
-    sub_counts["home"]["카테고리 베스트"] = len(best_products)
 
     print("[goldbox] {}".format(SECTION_LABELS["goldbox"]), flush=True)
     goldbox = collect_simple(
@@ -679,7 +728,7 @@ def main() -> int:
         ),
         flush=True,
     )
-    for section in ("cafe", "home", "living", "goldbox", "pl"):
+    for section in SECTION_LABELS:
         print("  - {:8s} {:3d}건".format(section, section_counts.get(section, 0)), flush=True)
 
     if client.errors:
