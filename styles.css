@@ -670,9 +670,8 @@ a { color: inherit; text-decoration: none; }
 }
 
 @media (min-width: 901px) {
-  /* 데스크톱에서는 탭·소분류 칩이 잘리지 않도록 여러 줄로 펼친다 (모바일은 가로 스크롤 유지) */
+  /* 데스크톱에서는 탭이 잘리지 않도록 여러 줄로 펼친다 (모바일은 가로 스크롤 유지) */
   .tabs { flex-wrap: wrap; overflow-x: visible; row-gap: 8px; }
-  .chips { flex-wrap: wrap; overflow-x: visible; }
 }
 
 @media (min-width: 1040px) {
