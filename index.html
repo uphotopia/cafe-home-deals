@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>☕🏠 사장님 &amp; 우리집 쿠팡 실시간 최저가</title>
+<meta name="description" content="카페 사장님 주간 필수템과 가정 생필품을 쿠팡 실시간 가격으로 모아 보여주는 최저가·특가 큐레이션 사이트입니다.">
+<meta name="theme-color" content="#ffffff">
+<meta property="og:title" content="☕🏠 사장님 &amp; 우리집 쿠팡 실시간 최저가">
+<meta property="og:description" content="카페 사장님 주간 필수템 + 가정 생필품, 쿠팡 실시간 최저가·특가 모음">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%98%95%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip" href="#grid">상품 목록으로 건너뛰기</a>
+
+<div class="notice" role="note">
+  <div class="notice__inner">
+    <span class="notice__icon" aria-hidden="true">ⓘ</span>
+    <p>
+      <strong>이 사이트는 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다.</strong>
+      <span class="notice__sub">가격은 쿠팡에서 구매하실 때와 동일하며, 추가 비용이 발생하지 않습니다.</span>
+    </p>
+  </div>
+</div>
+
+<header class="site-header">
+  <div class="wrap site-header__inner">
+    <div class="brand">
+      <span class="brand__mark" aria-hidden="true">☕🏠</span>
+      <div class="brand__text">
+        <h1 class="brand__title">사장님 &amp; 우리집 <span>쿠팡 실시간 최저가</span></h1>
+        <p class="brand__meta">
+          <span class="dot" aria-hidden="true"></span>
+          <span id="updatedAt">최근 업데이트: 불러오는 중…</span>
+        </p>
+      </div>
+    </div>
+
+    <form class="search" role="search" id="searchForm" autocomplete="off">
+      <label class="sr-only" for="searchInput">상품명·키워드 검색</label>
+      <svg class="search__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4 4"/></svg>
+      <input id="searchInput" type="search" inputmode="search" enterkeyhint="search"
+             placeholder="상품명·키워드 검색 (예: 아이스컵, 물티슈)">
+      <button type="button" class="search__clear" id="searchClear" aria-label="검색어 지우기" hidden>✕</button>
+    </form>
+  </div>
+</header>
+
+<div class="bar" id="bar">
+  <div class="wrap">
+    <nav class="tabs" role="tablist" aria-label="상품 섹션">
+      <button class="tab is-active" role="tab" data-section="all" aria-selected="true">전체 <span class="tab__count" data-count="all"></span></button>
+      <button class="tab" role="tab" data-section="cafe" aria-selected="false">☕ 카페 사장님 필수템 <span class="tab__count" data-count="cafe"></span></button>
+      <button class="tab" role="tab" data-section="home" aria-selected="false">🏠 가정 생필품 <span class="tab__count" data-count="home"></span></button>
+      <button class="tab" role="tab" data-section="goldbox" aria-selected="false">⚡ 오늘의 골드박스 <span class="tab__count" data-count="goldbox"></span></button>
+      <button class="tab" role="tab" data-section="pl" aria-selected="false">🔥 쿠팡 PL 특가 <span class="tab__count" data-count="pl"></span></button>
+    </nav>
+
+    <div class="controls">
+      <div class="chips" id="chips" role="group" aria-label="소분류 필터"></div>
+
+      <div class="controls__right">
+        <label class="switch" title="로켓배송 상품만 보기">
+          <input type="checkbox" id="rocketOnly">
+          <span class="switch__track" aria-hidden="true"><span class="switch__thumb"></span></span>
+          <span class="switch__label">🚀 로켓배송만</span>
+        </label>
+        <label class="switch" title="무료배송 상품만 보기">
+          <input type="checkbox" id="freeOnly">
+          <span class="switch__track" aria-hidden="true"><span class="switch__thumb"></span></span>
+          <span class="switch__label">무료배송만</span>
+        </label>
+
+        <div class="select">
+          <label class="sr-only" for="sort">정렬</label>
+          <select id="sort">
+            <option value="recommended">추천순</option>
+            <option value="price-asc">낮은 가격순</option>
+            <option value="price-desc">높은 가격순</option>
+          </select>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<main class="wrap main" id="main">
+  <div class="resultbar">
+    <p class="resultbar__count" id="resultCount" aria-live="polite"></p>
+    <p class="resultbar__hint" id="resultHint"></p>
+  </div>
+
+  <section class="grid" id="grid" aria-label="상품 목록"></section>
+
+  <div class="empty" id="empty" hidden>
+    <p class="empty__emoji" aria-hidden="true">🔍</p>
+    <p class="empty__title">조건에 맞는 상품이 없습니다</p>
+    <p class="empty__desc">검색어를 바꾸거나 필터를 초기화해 보세요.</p>
+    <button type="button" class="btn-reset" id="resetBtn">필터 초기화</button>
+  </div>
+
+  <div class="skeleton" id="skeleton" aria-hidden="true"></div>
+
+  <p class="loadmore" id="loadmore">
+    <button type="button" class="btn-more" id="moreBtn" hidden>상품 더 보기</button>
+  </p>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="footer__disclosure">
+      <p><strong>쿠팡 파트너스 고지</strong></p>
+      <p>이 사이트는 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다. 상품 가격은 쿠팡에서 구매하실 때와 동일하며, 이용자에게 추가 비용이 발생하지 않습니다.</p>
+      <p>표시된 가격은 마지막 API 갱신 시점 기준이며, 쿠팡 사이트의 실시간 변동에 따라 차이가 있을 수 있습니다. 재고·배송 조건·쿠폰 적용 여부는 쿠팡 상품 페이지에서 최종 확인해 주세요.</p>
+    </div>
+    <div class="footer__meta">
+      <p>데이터 출처: 쿠팡 파트너스 Open API (상품 검색 · 카테고리 베스트 · 골드박스 · 쿠팡 PL)</p>
+      <p><span id="updatedAtFooter">최근 업데이트: –</span> · 자동 갱신: 매시간 · <span id="totalCountFooter"></span></p>
+    </div>
+    <p class="footer__copy">© <span id="year">2026</span> 사장님 &amp; 우리집 최저가 · 개인이 운영하는 가격 비교·큐레이션 사이트입니다.</p>
+  </div>
+</footer>
+
+<noscript>
+  <p class="noscript">상품 목록을 보려면 브라우저의 자바스크립트를 켜 주세요.</p>
+</noscript>
+
+<script src="app.js" defer></script>
+</body>
+</html>
