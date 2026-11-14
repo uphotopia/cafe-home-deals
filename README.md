@@ -1,6 +1,6 @@
-# ☕🏠 사장님 &amp; 우리집 쿠팡 실시간 최저가
+# ☕🏠🧺 사장님·우리집·자취방 쿠팡 실시간 최저가
 
-카페 사장님이 매주 사는 물품과 가정 생필품을 **쿠팡 파트너스 Open API**로 매시간 수집해
+카페 사장님이 매주 사는 물품과 가정 생필품, 자취·살림꿀템을 **쿠팡 파트너스 Open API**로 매시간 수집해
 최저가·특가로 보여주는 정적 웹사이트입니다. GitHub Pages에서 무료로 호스팅되고,
 GitHub Actions가 `data/deals.json`을 자동으로 갱신합니다.
 
@@ -15,6 +15,7 @@ GitHub Actions가 `data/deals.json`을 자동으로 갱신합니다.
 | --- | --- | --- |
 | ☕ 카페 사장님 필수템 | `GET /products/search` (키워드 13개) | 컵·뚜껑·홀더 / 빨대·냅킨·소모품 / 원두·우유·시럽 |
 | 🏠 가정 생필품 | `GET /products/search` (키워드 10개) + `GET /products/bestcategories/{1014,1013,1012}` | 휴지·물티슈 / 세제·청소 / 생수·식료품 / 카테고리 베스트 |
+| 🧺 자취·살림꿀템 | `GET /products/search` (키워드 10개) | 수납·정리 / 주방·살림 / 자취·생활꿀템 |
 | ⚡ 오늘의 골드박스 | `GET /products/goldbox` | 오늘의 특가 |
 | 🔥 쿠팡 PL 특가 | `GET /products/coupangPL?limit=30` | 쿠팡 PL 브랜드 |
 

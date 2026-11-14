@@ -4,8 +4,8 @@
 쿠팡 파트너스 Open API 수집기
 ================================
 
-카페 사장님 주간 필수템 + 가정 생필품 + 골드박스 + 쿠팡 PL 특가를
-쿠팡 파트너스 Open API에서 수집해 `data/deals.json` 으로 저장한다.
+카페 사장님 주간 필수템 + 가정 생필품 + 자취·살림꿀템 + 골드박스 +
+쿠팡 PL 특가를 쿠팡 파트너스 Open API에서 수집해 `data/deals.json` 으로 저장한다.
 
 인증 정보 우선순위
 ------------------
@@ -119,6 +119,36 @@ SEARCH_SECTIONS = [
             ),
         ],
     ),
+    (
+        "living",
+        [
+            (
+                "수납·정리",
+                [
+                    "무타공 욕실선반",
+                    "접이식 수납박스",
+                    "논슬립 옷걸이",
+                    "무타공 접착 후크",
+                ],
+            ),
+            (
+                "주방·살림",
+                [
+                    "실리콘 지퍼백",
+                    "밀폐 음식물쓰레기통",
+                    "싱크대 물막이",
+                ],
+            ),
+            (
+                "자취·생활꿀템",
+                [
+                    "배수구 클리너",
+                    "규조토 발매트",
+                    "1인용 전기방석",
+                ],
+            ),
+        ],
+    ),
 ]
 
 BEST_CATEGORIES = [
@@ -145,6 +175,7 @@ IMAGE_USER_AGENT = (
 SECTION_LABELS = {
     "cafe": "☕ 카페 사장님 필수템",
     "home": "🏠 가정 생필품",
+    "living": "🧺 자취·살림꿀템",
     "goldbox": "⚡ 오늘의 골드박스",
     "pl": "🔥 쿠팡 PL 특가",
 }
@@ -648,7 +679,7 @@ def main() -> int:
         ),
         flush=True,
     )
-    for section in ("cafe", "home", "goldbox", "pl"):
+    for section in ("cafe", "home", "living", "goldbox", "pl"):
         print("  - {:8s} {:3d}건".format(section, section_counts.get(section, 0)), flush=True)
 
     if client.errors:
