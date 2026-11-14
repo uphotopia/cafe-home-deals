@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://uphotopia.github.io/cafe-home-deals/sitemap.xml
