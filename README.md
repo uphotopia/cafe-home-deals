@@ -16,7 +16,7 @@ GitHub Pages에서 무료로 호스팅되고, GitHub Actions가 `data/deals.json
 | ☕ 카페 사장님 필수템 | `GET /products/search` (키워드 13개) | 컵·뚜껑·홀더 / 빨대·냅킨·소모품 / 원두·우유·시럽 |
 | 🏠 가정 생필품 | `GET /products/search` (키워드 7개) + `GET /products/bestcategories/{1014,1013}` | 휴지·물티슈 / 세제·청소 / 카테고리 베스트 |
 | 🧺 자취·살림꿀템 | `GET /products/search` (키워드 10개) | 수납·정리 / 주방·살림 / 자취·생활꿀템 |
-| 🧥 가성비 겨울옷 | `GET /products/search` (키워드 8개) | 패딩·아우터 / 이너웨어·상의 / 홈웨어·방한용품 |
+| 🧥 가성비 겨울옷 | `GET /products/search` (키워드 9개) | 패딩·아우터 / 이너웨어·상의 / 홈웨어·방한용품 |
 | 🛒 가성비 식료품 | `GET /products/search` (키워드 13개) + `GET /products/bestcategories/1012` | 즉석밥·면류 / 쌀·잡곡 / 생수·음료 / 간편식·밀키트 / 냉동식품·만두 / 견과류·간식 / 카테고리 베스트 |
 | ⚡ 오늘의 골드박스 | `GET /products/goldbox` | 오늘의 특가 |
 | 🔥 쿠팡 PL 특가 | `GET /products/coupangPL?limit=30` | 쿠팡 PL 브랜드 |
@@ -58,7 +58,9 @@ python3 -m http.server 8000
 
 수집기 동작 메모
 
-- 요청 간 기본 1.4초 대기(`--delay`로 조절) — 전체 요청 56회, `/products/search` 분당 50회 제한 준수
+- 요청 간 기본 1.4초 대기(`--delay`로 조절) — 전체 요청 57회, `/products/search` 분당 50회 제한 준수
+- 검색 결과가 키워드와 무관한 인기 상품(화장지·건전지·숙박권 등)만 오면 그 키워드는 버립니다
+  (`keyword_matches()` — 키워드에 맞는 상품이 없을 때 쿠팡이 다른 상품을 대신 주는 경우 차단)
 - `home` 섹션의 `생수·식료품` 소분류는 `🛒 가성비 식료품` 섹션으로 옮겨 키워드를 넓혔습니다(중복 없음)
 - 429/5xx 응답은 지수 백오프로 최대 3회 재시도
 - `productId` 기준 중복 제거, 파트너스 태그(`lptag=AF9362379`)가 없는 링크는 제외

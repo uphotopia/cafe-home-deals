@@ -159,7 +159,7 @@ SEARCH_SECTIONS = [
             ),
             (
                 "홈웨어·방한용품",
-                ["수면잠옷", "방한장갑", "넥워머", "겨울 양말"],
+                ["겨울 잠옷", "남성 파자마", "방한장갑", "넥워머", "겨울 양말"],
             ),
         ],
     ),
@@ -351,6 +351,49 @@ class CoupangClient:
 # ---------------------------------------------------------------------------
 
 
+def _compact(text: str) -> str:
+    """비교용 문자열: 소문자 + 공백·기호 제거."""
+    return re.sub(r"[^0-9a-z가-힣]", "", (text or "").lower())
+
+
+def _keyword_needles(keyword: str) -> list[str]:
+    """키워드에서 '상품명에 있으면 관련 있다'고 볼 조각들을 만든다.
+
+    토큰이 2글자 이상이면 2글자 조각(bigram), 1글자면 그 글자 자체.
+    ('쌀 10kg' → ['쌀', '10', '0k', 'kg'])
+    """
+    needles: list[str] = []
+    for token in (keyword or "").split():
+        packed = _compact(token)
+        if len(packed) < 2:
+            if packed:
+                needles.append(packed)
+            continue
+        for i in range(len(packed) - 1):
+            needles.append(packed[i:i + 2])
+    return needles
+
+
+def keyword_matches(items: list[dict], keyword: str) -> bool:
+    """검색 결과가 키워드와 실제로 관련 있는지 확인한다.
+
+    쿠팡 파트너스 `/products/search` 는 키워드에 맞는 상품이 없으면
+    화장지·건전지·숙박권 같은 무관한 인기 상품을 대신 돌려준다. 그런 응답이
+    사이트에 섞이지 않도록, 결과 중 최소 1건이라도 키워드 조각을 포함할 때만
+    그 응답을 받아들인다.
+    """
+    needles = _keyword_needles(keyword)
+    if not needles:
+        return True
+    for raw in items:
+        name = _compact(raw.get("productName") or "")
+        if not name:
+            continue
+        if any(needle in name for needle in needles):
+            return True
+    return False
+
+
 def parse_unit_hint(name: str) -> str | None:
     """제목에서 '1000개', '1kg', '30롤' 같은 용량/수량 표기를 뽑아낸다."""
     if not name:
@@ -422,6 +465,13 @@ def collect_search(client: CoupangClient, section: str, groups) -> tuple[list[di
             items = data if isinstance(data, list) else []
             if isinstance(data, dict):
                 items = data.get("productData") or []
+            if items and not keyword_matches(items, keyword):
+                # 키워드에 맞는 상품이 없어 쿠팡이 무관한 인기 상품을 대신 준 경우
+                print(
+                    "  · [{}] {} → 대체 추천만 응답, 건너뜀".format(sub_category, keyword),
+                    flush=True,
+                )
+                continue
             added = 0
             for idx, raw in enumerate(items, start=1):
                 product = normalize_product(raw, section, sub_category, keyword, idx)
