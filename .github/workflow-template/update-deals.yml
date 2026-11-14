@@ -1,0 +1,78 @@
+name: Update deals data
+
+# 쿠팡 파트너스 API에서 최저가·특가 상품을 다시 수집해 data/deals.json 을 갱신한다.
+# - 매시간 35분 (UTC) = 한국시간 매시간 35분 → 골드박스 갱신(매일 07:30 KST) 직후 07:35 KST 실행
+# - GitHub 의 스케줄 실행은 부하에 따라 수 분~수십 분 늦게 시작될 수 있다.
+on:
+  schedule:
+    - cron: "35 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-deals
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Fetch deals from Coupang Partners API
+        env:
+          COUPANG_ACCESS_KEY: ${{ secrets.COUPANG_ACCESS_KEY }}
+          COUPANG_SECRET_KEY: ${{ secrets.COUPANG_SECRET_KEY }}
+        run: |
+          python scripts/fetch_deals.py
+
+      - name: Validate output (JSON + 파트너스 링크 + 비밀키 미노출)
+        env:
+          COUPANG_ACCESS_KEY: ${{ secrets.COUPANG_ACCESS_KEY }}
+          COUPANG_SECRET_KEY: ${{ secrets.COUPANG_SECRET_KEY }}
+        run: |
+          python - <<'PY'
+          import json, os, sys
+
+          data = json.load(open("data/deals.json", encoding="utf-8"))
+          products = data["products"]
+          counts = data["meta"]["sectionCounts"]
+          print("총 상품:", len(products), "섹션별:", counts)
+
+          if len(products) < 50:
+              sys.exit("상품 수가 너무 적습니다: %d" % len(products))
+
+          missing = [p["productId"] for p in products if "lptag=AF9362379" not in p["productUrl"]]
+          if missing:
+              sys.exit("파트너스 태그가 빠진 상품 %d건: %s" % (len(missing), missing[:5]))
+
+          blob = open("data/deals.json", encoding="utf-8").read()
+          for key in ("COUPANG_ACCESS_KEY", "COUPANG_SECRET_KEY"):
+              value = os.environ.get(key, "").strip()
+              if value and value in blob:
+                  sys.exit("%s 값이 data/deals.json 에 노출되었습니다." % key)
+
+          print("검증 통과")
+          PY
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- data/deals.json; then
+            echo "변경된 내용이 없습니다."
+            exit 0
+          fi
+          git add data/deals.json
+          git commit -m "chore(data): update deals $(TZ=Asia/Seoul date +'%Y-%m-%d %H:%M KST')"
+          git push
