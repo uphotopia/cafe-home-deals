@@ -150,15 +150,23 @@
     return ALL.filter(function (p) { return section === 'all' || p.section === section; });
   }
 
+  function matchesQuery(p) {
+    var q = state.query.trim().toLowerCase();
+    if (!q) return true;
+    var hay = (p.productName + ' ' + p.subCategory + ' ' + (p.keyword || '') + ' ' + (p.categoryName || '')).toLowerCase();
+    return hay.indexOf(q) !== -1;
+  }
+
+  function nameMatchesQuery(p) {
+    var q = state.query.trim().toLowerCase();
+    if (!q) return true;
+    return p.productName.toLowerCase().indexOf(q) !== -1;
+  }
+
   function passesBase(p) {
     if (state.rocketOnly && !p.isRocket) return false;
     if (state.freeOnly && !p.isFreeShipping) return false;
-    if (isSearchMode()) {
-      var q = state.query.trim().toLowerCase();
-      var hay = (p.productName + ' ' + p.subCategory + ' ' + (p.keyword || '') + ' ' + (p.categoryName || '')).toLowerCase();
-      if (hay.indexOf(q) === -1) return false;
-    }
-    return true;
+    return matchesQuery(p);
   }
 
   function filtered() {
@@ -175,6 +183,14 @@
         var pb = b.productPrice === null || b.productPrice === undefined ? Number.MAX_SAFE_INTEGER : b.productPrice;
         if (pa === pb) return a._i - b._i;
         return (pa - pb) * dir;
+      });
+    } else if (isSearchMode()) {
+      // 검색어가 상품명에 있는 상품을 먼저, 키워드로만 걸린 상품은 뒤로
+      list.sort(function (a, b) {
+        var na = nameMatchesQuery(a) ? 0 : 1;
+        var nb = nameMatchesQuery(b) ? 0 : 1;
+        if (na !== nb) return na - nb;
+        return a._i - b._i;
       });
     }
     return list;
@@ -394,11 +410,9 @@
     }
 
     var hints = [];
-    if (isSearchMode()) hints.push('전체 섹션에서 검색');
-    else {
-      if (state.section !== 'all') hints.push(SECTION_LABELS[state.section] || '');
-      if (state.sub !== 'all') hints.push(state.sub);
-    }
+    if (state.section !== 'all') hints.push(SECTION_LABELS[state.section] || '');
+    if (state.sub !== 'all') hints.push(state.sub);
+    if (isSearchMode()) hints.push('검색');
     if (state.rocketOnly) hints.push('로켓배송');
     if (state.freeOnly) hints.push('무료배송');
     if (state.sort === 'price-asc') hints.push('낮은 가격순');
