@@ -396,7 +396,7 @@
     var hints = [];
     if (isSearchMode()) hints.push('전체 섹션에서 검색');
     else {
-      hints.push(SECTION_LABELS[state.section] || '');
+      if (state.section !== 'all') hints.push(SECTION_LABELS[state.section] || '');
       if (state.sub !== 'all') hints.push(state.sub);
     }
     if (state.rocketOnly) hints.push('로켓배송');
