@@ -41,6 +41,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 
 API_HOST = "https://api-gateway.coupang.com"
@@ -130,6 +131,16 @@ SEARCH_LIMIT = 10
 BEST_LIMIT = 20
 GOLDBOX_LIMIT = 30
 PL_LIMIT = 30
+
+# 이미지 CDN 정규화 관련 상수
+AD_IMAGE_HOST = "ads-partners.coupang.com"
+CDN_HOST_SUFFIX = "coupangcdn.com"
+IMAGE_MAX_HOPS = 3
+IMAGE_WORKERS = 16
+IMAGE_USER_AGENT = (
+    "Mozilla/5.0 (Linux; Android 14; SM-S911N) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36"
+)
 
 SECTION_LABELS = {
     "cafe": "☕ 카페 사장님 필수템",
@@ -370,6 +381,130 @@ def collect_simple(client: CoupangClient, path: str, params: dict, section: str,
 
 
 # ---------------------------------------------------------------------------
+# 이미지 URL 정규화 (ads-partners → coupangcdn)
+# ---------------------------------------------------------------------------
+# 쿠팡 파트너스 API가 주는 productImage는 `https://ads-partners.coupang.com/image1/...`
+# 형태인데, 이 호스트는 모바일 광고차단기(삼성 인터넷·AdGuard DNS·EasyList/YousList 등)가
+# `ads-partners` 패턴으로 통째로 막는다. 같은 이미지는 쿠팡 이미지 CDN
+# (`https://img*.coupangcdn.com/...`)으로 302 리다이렉트되므로, 리다이렉트를 따라가
+# 최종 CDN URL을 저장해 두면 모바일에서도 썸네일이 보인다.
+# productUrl(수익 링크)은 절대 건드리지 않는다.
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """리다이렉트를 자동으로 따라가지 않고 Location 헤더만 확인한다."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: D401
+        return None
+
+
+def _image_headers() -> dict:
+    return {
+        "User-Agent": IMAGE_USER_AGENT,
+        "Accept": "image/avif,image/webp,image/*,*/*;q=0.8",
+    }
+
+
+def _is_cdn_url(url: str) -> bool:
+    host = urllib.parse.urlsplit(url or "").netloc.lower().split(":")[0]
+    return host == CDN_HOST_SUFFIX or host.endswith("." + CDN_HOST_SUFFIX)
+
+
+def _needs_resolve(url: str) -> bool:
+    host = urllib.parse.urlsplit(url or "").netloc.lower().split(":")[0]
+    return host == AD_IMAGE_HOST or host.endswith("." + AD_IMAGE_HOST)
+
+
+def _probe(opener, url: str, method: str, timeout: float):
+    """리다이렉트를 따라가지 않고 한 홉만 확인해 (status, location)을 돌려준다."""
+    req = urllib.request.Request(url, method=method, headers=_image_headers())
+    try:
+        with opener.open(req, timeout=timeout) as resp:
+            return resp.status, resp.headers.get("Location")
+    except urllib.error.HTTPError as exc:
+        location = exc.headers.get("Location") if exc.headers else None
+        return exc.code, location
+    except Exception:  # noqa: BLE001 - 네트워크 오류는 실패로 처리
+        return None, None
+
+
+def resolve_cdn_url(image_url: str, opener=None, timeout: float = 8.0) -> str | None:
+    """ads-partners 이미지 URL → 최종 coupangcdn.com URL. 실패하면 None."""
+    if not _needs_resolve(image_url):
+        return image_url if _is_cdn_url(image_url) else None
+
+    opener = opener or urllib.request.build_opener(_NoRedirect)
+    current = image_url
+
+    for _ in range(IMAGE_MAX_HOPS):
+        status, location = _probe(opener, current, "HEAD", timeout)
+        if status is None or status >= 400 or not location:
+            # HEAD를 막는 서버가 있어 GET으로 한 번 더 확인한다 (본문은 읽지 않음).
+            status, location = _probe(opener, current, "GET", timeout)
+        if not location:
+            # 리다이렉트가 끝났다 → 현재 URL이 최종
+            return current if _is_cdn_url(current) else None
+        current = urllib.parse.urljoin(current, location)
+        if _is_cdn_url(current):
+            return current
+
+    return current if _is_cdn_url(current) else None
+
+
+def normalize_product_images(products: list[dict], workers: int = IMAGE_WORKERS) -> dict:
+    """productImage 중 ads-partners URL만 CDN URL로 바꾼다. 실패분은 원래 URL 유지."""
+    targets = sorted(
+        {p["productImage"] for p in products if _needs_resolve(p.get("productImage") or "")}
+    )
+    stats = {"targets": len(targets), "converted": 0, "unresolved": 0, "failedSamples": []}
+    if not targets:
+        print("이미지 CDN 정규화: 대상 0건 (변환 불필요)", flush=True)
+        return stats
+
+    print("이미지 CDN 정규화: {}건 (병렬 {})".format(len(targets), workers), flush=True)
+    resolved: dict[str, str] = {}
+    failures: list[tuple[str, str]] = []
+    done = 0
+    with ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
+        futures = {pool.submit(resolve_cdn_url, url): url for url in targets}
+        for future in as_completed(futures):
+            url = futures[future]
+            done += 1
+            try:
+                result = future.result()
+            except Exception as exc:  # noqa: BLE001
+                result = None
+                failures.append((url, "{}: {}".format(type(exc).__name__, exc)))
+            if result and result != url:
+                resolved[url] = result
+            elif not result:
+                failures.append((url, "no cdn redirect"))
+            if done % 25 == 0 or done == len(targets):
+                print(
+                    "  · {}/{} 확인 (변환 {}건)".format(done, len(targets), len(resolved)),
+                    flush=True,
+                )
+
+    changed = 0
+    for product in products:
+        new_url = resolved.get(product.get("productImage") or "")
+        if new_url and new_url != product.get("productImage"):
+            product["productImage"] = new_url
+            changed += 1
+
+    stats["converted"] = changed
+    stats["unresolved"] = len(targets) - len(resolved)
+    stats["failedSamples"] = [u for u, _ in failures[:3]]
+    print(
+        "  → 변환 완료 {}건 / 실패·미해결 {}건 (원래 URL 유지)".format(
+            changed, stats["unresolved"]
+        ),
+        flush=True,
+    )
+    return stats
+
+
+# ---------------------------------------------------------------------------
 # 메인
 # ---------------------------------------------------------------------------
 
@@ -449,6 +584,9 @@ def main() -> int:
     section_counts["pl"] = len(pl)
     sub_counts["pl"] = {"쿠팡 PL 브랜드": len(pl)}
 
+    # 모바일 광고차단기가 막는 ads-partners 이미지 URL을 쿠팡 이미지 CDN URL로 바꾼다.
+    image_stats = normalize_product_images(all_products)
+
     elapsed = time.time() - started
     now = datetime.now(KST)
 
@@ -465,11 +603,26 @@ def main() -> int:
             "partnersTag": PARTNERS_TAG,
             "requestCount": client.request_count,
             "elapsedSeconds": round(elapsed, 1),
+            "imageCdnResolved": image_stats["converted"],
+            "imageCdnUnresolved": image_stats["unresolved"],
             "disclosure": DISCLOSURE,
             "priceNotice": PRICE_NOTICE,
         },
         "products": all_products,
     }
+
+    remaining_ad_images = sum(
+        1 for p in all_products if AD_IMAGE_HOST in (p.get("productImage") or "")
+    )
+    if remaining_ad_images:
+        print(
+            "경고: ads-partners 이미지 URL이 {}건 남았습니다(변환 실패분).".format(
+                remaining_ad_images
+            ),
+            flush=True,
+        )
+    else:
+        print("확인: ads-partners 이미지 URL 0건.", flush=True)
 
     if len(all_products) < 30:
         print(

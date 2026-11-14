@@ -6,6 +6,8 @@
   'use strict';
 
   var PAGE_SIZE = 48;
+  // 첫 화면 상위 카드의 썸네일은 lazy 대기 없이 즉시 불러온다 (모바일 체감 속도).
+  var EAGER_IMAGE_COUNT = 12;
   var DATA_URL = 'data/deals.json';
   var PLACEHOLDER =
     'data:image/svg+xml;charset=utf-8,' +
@@ -259,7 +261,7 @@
     return b;
   }
 
-  function makeCard(p) {
+  function makeCard(p, index) {
     var card = document.createElement('div');
     card.className = 'card';
 
@@ -271,8 +273,12 @@
     thumb.setAttribute('aria-label', p.productName + ' — 쿠팡에서 보기');
 
     var img = document.createElement('img');
-    img.loading = 'lazy';
+    var eager = typeof index === 'number' && index < EAGER_IMAGE_COUNT;
+    img.loading = eager ? 'eager' : 'lazy';
+    if (eager && 'fetchPriority' in img) img.fetchPriority = 'high';
     img.decoding = 'async';
+    // 쿠팡 이미지 CDN은 리퍼러가 붙으면 막히는 경우가 있어 no-referrer로 요청한다.
+    img.referrerPolicy = 'no-referrer';
     img.alt = p.productName;
     img.src = p.productImage || PLACEHOLDER;
     img.addEventListener('error', function () {
@@ -390,7 +396,7 @@
 
     el.grid.innerHTML = '';
     var frag = document.createDocumentFragment();
-    visible.forEach(function (p) { frag.appendChild(makeCard(p)); });
+    visible.forEach(function (p, i) { frag.appendChild(makeCard(p, i)); });
     el.grid.appendChild(frag);
 
     // 결과 요약
