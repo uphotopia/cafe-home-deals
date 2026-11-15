@@ -381,9 +381,10 @@
     card.appendChild(thumb);
     card.appendChild(body);
 
-    // 상품명이 2줄을 넘으면 '전체 보기' 버튼 노출
+    // 상품명이 2줄을 넘으면 '전체 보기' 버튼 노출 (2줄 고정 높이 기준으로 판단)
     requestAnimationFrame(function () {
-      if (card.querySelector('.card__name').scrollHeight > 40) more.hidden = false;
+      var nameEl = card.querySelector('.card__name');
+      if (nameEl && nameEl.scrollHeight > nameEl.clientHeight + 1) more.hidden = false;
     });
 
     return card;
