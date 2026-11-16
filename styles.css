@@ -701,7 +701,7 @@ a { color: inherit; text-decoration: none; }
   .tab:last-child { grid-column: span 2; }
   .tab {
     justify-content: center;
-    gap: 2px;
+    gap: 3px;
     min-height: 32px;
     padding: 6px 3px;
     font-size: 10.5px;
@@ -711,7 +711,7 @@ a { color: inherit; text-decoration: none; }
   }
   .tab__long { display: none; }
   .tab__short { display: inline; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .tab__count { font-size: 9.5px; padding: 1px 4px; min-width: 14px; line-height: 1.4; }
+  .tab__count { font-size: 9.5px; padding: 1px 3px; min-width: 13px; line-height: 1.4; }
 
   /* ---------- 필터: 칩·토글·정렬 축소 ---------- */
   .controls {
