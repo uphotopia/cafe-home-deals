@@ -214,7 +214,7 @@ SEARCH_SECTIONS = [
             ),
             (
                 "무선 이어폰",
-                ["무선 이어폰", "블루투스 이어폰", "오픈형 블루투스 이어폰", "가성비 이어폰"],
+                ["무선 이어폰", "블루투스 이어폰", "오픈형 블루투스 이어폰"],
             ),
             (
                 "유선 이어폰",
@@ -248,6 +248,17 @@ IMAGE_USER_AGENT = (
     "Mozilla/5.0 (Linux; Android 14; SM-S911N) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36"
 )
+
+# 소분류에 어색하게 섞이는 상품을 이름으로 걸러낸다 (섹션 키 → 금지어).
+# '웨어러블 카메라' 같은 검색어가 스마트워치·스트랩까지, '초소형 카메라'가
+# 홈캠·CCTV까지 함께 주기 때문이다.
+EXCLUDE_PATTERNS = {
+    "digital": (
+        "스마트워치", "스트랩", "지지대", "거치대", "삼각대",
+        "케이스", "필름", "보호캡",
+        "홈캠", "cctv", "감시카메라", "웹캠", "ip 카메라",
+    ),
+}
 
 SECTION_LABELS = {
     "cafe": "☕ 카페 사장님 필수템",
@@ -466,6 +477,12 @@ def normalize_product(raw: dict, section: str, sub_category: str, keyword: str,
     if PARTNERS_TAG not in url:
         # 파트너스 추적 태그가 없는 링크는 수익 링크가 아니므로 제외
         return None
+    bad_words = EXCLUDE_PATTERNS.get(section, ())
+    if bad_words:
+        lowered = name.lower()
+        if any(bad in lowered for bad in bad_words):
+            # 섹션 소분류와 무관한 상품(예: 웨어러블 카메라 검색의 스마트워치)은 제외
+            return None
 
     product = {
         "productId": int(product_id),
