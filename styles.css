@@ -773,6 +773,11 @@ a { color: inherit; text-decoration: none; }
   .tabs { flex-wrap: wrap; overflow-x: visible; row-gap: 8px; }
 }
 
+/* 901~1039px: 제목이 길어져 검색창이 과도하게 줄지 않도록 태블릿과 같은 크기 유지 */
+@media (min-width: 901px) and (max-width: 1039px) {
+  .brand__title { font-size: 18.5px; }
+}
+
 @media (min-width: 1040px) {
   .grid { grid-template-columns: repeat(auto-fill, minmax(196px, 1fr)); gap: 20px; }
   .skeleton { grid-template-columns: repeat(auto-fill, minmax(196px, 1fr)); gap: 20px; }
